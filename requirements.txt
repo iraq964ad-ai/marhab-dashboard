@@ -1,14 +1,5 @@
-discord.py==2.3.2
-python-dotenv==1.0.0
-Pillow
-aiohttp
-requests
-arabic-reshaper
-python-bidi
-aiosqlite
-deep-translator
-openai
 Flask
 Flask-Login
 Flask-WTF
 requests
+gunicorn
