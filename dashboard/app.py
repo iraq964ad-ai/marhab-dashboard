@@ -17,11 +17,10 @@ class AdminUser(UserMixin):
     def __init__(self, id, name, guilds):
         self.id = id
         self.name = name
-        self.guilds = guilds  # قائمة السيرفرات التي يملك فيها صلاحية Admin
+        self.guilds = guilds
 
 @login_manager.user_loader
 def load_user(user_id):
-    # لا نحتاج لاسترجاع guilds هنا لأن الجلسة تحفظها
     return AdminUser(id=user_id, name=session.get('user_name', ''), guilds=session.get('admin_guilds', []))
 
 def is_bot_owner(user_id):
@@ -43,7 +42,6 @@ def callback():
     code = request.args.get('code')
     if not code:
         return "No code provided", 400
-    # تبادل الكود للحصول على token
     data = {
         'client_id': Config.DISCORD_CLIENT_ID,
         'client_secret': Config.DISCORD_CLIENT_SECRET,
@@ -57,17 +55,14 @@ def callback():
         return "Failed to exchange code", 400
     token_data = resp.json()
     access_token = token_data['access_token']
-    # جلب معلومات المستخدم
     user_resp = requests.get('https://discord.com/api/users/@me', headers={'Authorization': f'Bearer {access_token}'})
     if user_resp.status_code != 200:
         return "Failed to get user", 400
     user_data = user_resp.json()
     user_id = str(user_data['id'])
     user_name = user_data['username']
-    # جلب سيرفرات المستخدم
     guilds_resp = requests.get('https://discord.com/api/users/@me/guilds', headers={'Authorization': f'Bearer {access_token}'})
     user_guilds = guilds_resp.json() if guilds_resp.status_code == 200 else []
-    # تصفية السيرفرات التي يملك فيها صلاحية Admin أو هو مالك البوت
     all_db_guilds = dbutils.get_all_guilds_from_db()
     admin_guilds = []
     for g in all_db_guilds:
@@ -91,9 +86,7 @@ def logout():
 @app.route('/')
 @login_required
 def index():
-    # عرض السيرفرات المتاحة للمستخدم الحالي
     guilds = current_user.guilds
-    # إحصائيات
     total_buttons = 0
     for g in guilds:
         total_buttons += len(dbutils.get_all_buttons(g))
@@ -103,21 +96,24 @@ def index():
 @login_required
 def manage_buttons():
     form = ButtonForm()
-    # تعبئة الخيارات بالسيرفرات التي يملك المستخدم صلاحيتها
     form.guild_id.choices = [(g, str(g)) for g in current_user.guilds]
     if form.validate_on_submit():
-        dbutils.add_button(
-            guild_id=form.guild_id.data,
-            key=form.key.data,
-            label=form.label.data,
-            emoji=form.emoji.data or '',
-            description=form.description.data or '',
-            ticket_title=form.ticket_title.data or '',
-            ticket_color=form.ticket_color.data or '#5865F2'
-        )
-        flash('تم إضافة الزر بنجاح', 'success')
+        try:
+            dbutils.add_button(
+                guild_id=form.guild_id.data,
+                key=form.key.data,
+                label=form.label.data,
+                emoji=form.emoji.data or '',
+                description=form.description.data or '',
+                ticket_title=form.ticket_title.data or '',
+                ticket_color=form.ticket_color.data or '#5865F2'
+            )
+            flash('تم إضافة الزر بنجاح', 'success')
+        except NotImplementedError:
+            flash('⚠️ الإضافة عبر الويب غير متاحة حالياً. استخدم الأمر !panel_settings في ديسكورد.', 'warning')
+        except Exception as e:
+            flash(f'خطأ: {e}', 'danger')
         return redirect(url_for('manage_buttons'))
-    # جلب الأزرار لكل السيرفرات المتاحة
     all_buttons = []
     for g in current_user.guilds:
         buttons = dbutils.get_all_buttons(g)
@@ -128,15 +124,7 @@ def manage_buttons():
 @app.route('/button/delete/<int:button_id>')
 @login_required
 def delete_button(button_id):
-    # نتحقق أولاً من أن الزر يخص سيرفر يملك المستخدم صلاحية فيه
-    conn = dbutils.get_db_connection()
-    btn = conn.execute("SELECT guild_id FROM panel_buttons WHERE id = ?", (button_id,)).fetchone()
-    conn.close()
-    if btn and btn['guild_id'] in current_user.guilds:
-        dbutils.delete_button(button_id)
-        flash('تم حذف الزر', 'success')
-    else:
-        flash('لا يمكنك حذف هذا الزر', 'danger')
+    flash('⚠️ الحذف عبر الويب غير متاح حالياً. استخدم الأمر !panel_settings في ديسكورد.', 'warning')
     return redirect(url_for('manage_buttons'))
 
 @app.route('/settings/<int:guild_id>', methods=['GET', 'POST'])
@@ -147,17 +135,22 @@ def panel_settings(guild_id):
         return redirect(url_for('index'))
     form = PanelSettingsForm()
     if form.validate_on_submit():
-        data = {
-            'title': form.title.data,
-            'description': form.description.data,
-            'color': form.color.data,
-            'thumbnail': form.thumbnail.data,
-            'image': form.image.data,
-            'footer': form.footer.data
-        }
-        data = {k: v for k, v in data.items() if v}
-        dbutils.update_panel_settings(guild_id, **data)
-        flash('تم حفظ إعدادات اللوحة', 'success')
+        try:
+            data = {
+                'title': form.title.data,
+                'description': form.description.data,
+                'color': form.color.data,
+                'thumbnail': form.thumbnail.data,
+                'image': form.image.data,
+                'footer': form.footer.data
+            }
+            data = {k: v for k, v in data.items() if v}
+            dbutils.update_panel_settings(guild_id, **data)
+            flash('تم حفظ إعدادات اللوحة', 'success')
+        except NotImplementedError:
+            flash('⚠️ التحديث عبر الويب غير متاح حالياً. استخدم الأوامر !set_title, !set_desc, !set_color في ديسكورد.', 'warning')
+        except Exception as e:
+            flash(f'خطأ: {e}', 'danger')
         return redirect(url_for('panel_settings', guild_id=guild_id))
     settings = dbutils.get_panel_settings(guild_id)
     if settings:
