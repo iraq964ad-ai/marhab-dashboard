@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+    <div class="card-header bg-primary text-white">
+        مرحباً {{ current_user.name }}
+    </div>
+    <div class="card-body">
+        <p>السيرفرات التي لديك صلاحية فيها:</p>
+        <ul>
+        {% for g in admin_guilds %}
+            <li>سيرفر ID: {{ g }} - <a href="{{ url_for('panel_settings', guild_id=g) }}">الإعدادات</a></li>
+        {% endfor %}
+        </ul>
+        <p>إجمالي الأزرار: {{ total_buttons }}</p>
+        <a href="{{ url_for('manage_buttons') }}" class="btn btn-success">إدارة الأزرار</a>
+    </div>
+</div>
+{% endblock %}

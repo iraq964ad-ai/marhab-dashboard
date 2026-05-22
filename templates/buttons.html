@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>إدارة الأزرار</h2>
+<div class="row">
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-header">إضافة زر جديد</div>
+            <div class="card-body">
+                <form method="post">
+                    {{ form.hidden_tag() }}
+                    <div class="mb-3">{{ form.guild_id.label }} {{ form.guild_id(class="form-select") }}</div>
+                    <div class="mb-3">{{ form.key.label }} {{ form.key(class="form-control") }}</div>
+                    <div class="mb-3">{{ form.label.label }} {{ form.label(class="form-control") }}</div>
+                    <div class="mb-3">{{ form.emoji.label }} {{ form.emoji(class="form-control") }}</div>
+                    <div class="mb-3">{{ form.description.label }} {{ form.description(class="form-control") }}</div>
+                    <div class="mb-3">{{ form.ticket_title.label }} {{ form.ticket_title(class="form-control") }}</div>
+                    <div class="mb-3">{{ form.ticket_color.label }} {{ form.ticket_color(class="form-control") }}</div>
+                    {{ form.submit(class="btn btn-primary") }}
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-7">
+        <h5>الأزرار الحالية (للقراءة فقط)</h5>
+        <table class="table table-bordered">
+            <thead><tr><th>ID</th><th>السيرفر</th><th>المفتاح</th><th>النص</th><th>الإيموجي</th></tr></thead>
+            <tbody>
+            {% for btn in buttons %}
+            <tr>
+                <td>{{ btn.id }}</td>
+                <td>{{ btn.guild_id }}</td>
+                <td>{{ btn.button_key }}</td>
+                <td>{{ btn.label }}</td>
+                <td>{{ btn.emoji }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
