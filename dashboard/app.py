@@ -2,9 +2,9 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 import requests
 import urllib.parse
-from dashboard.config import Config
-from dashboard.forms import ButtonForm, PanelSettingsForm
-import dashboard.utils as dbutils
+from config import Config
+from forms import ButtonForm, PanelSettingsForm
+import utils as dbutils
 
 app = Flask(__name__)
 app.config.from_object(Config)
