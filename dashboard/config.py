@@ -1,16 +1,16 @@
 import os
 
 class Config:
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'replace-with-strong-secret-key'
-    
-    # بيانات تطبيق Discord (سجل تطبيق جديد في Discord Developer Portal)
-    DISCORD_CLIENT_ID = os.environ.get('1507224443737473215') or 'YOUR_CLIENT_ID'
-    DISCORD_CLIENT_SECRET = os.environ.get('N2QOaETziUCaBqXQd4CJhgdkwsQLCyiC') or 'YOUR_CLIENT_SECRET'
-    DISCORD_REDIRECT_URI = os.environ.get('DISCORD_REDIRECT_URI') or 'http://localhost:5000/callback'
-    DISCORD_SCOPES = ['identify', 'guilds']  # نحتاج guilds لمعرفة سيرفرات المستخدم
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'marhab-dashboard-secret-key')
 
-    # مسار قاعدة بيانات البوت (نفترض أنها في نفس مجلد المشروع)
-    DATABASE_PATH = os.environ.get('DATABASE_PATH') or 'guild_settings.db'
+    # Discord OAuth2 (نفس البيانات القديمة)
+    DISCORD_CLIENT_ID = os.environ.get('DISCORD_CLIENT_ID', '1507224443737473215')
+    DISCORD_CLIENT_SECRET = os.environ.get('DISCORD_CLIENT_SECRET', 'N2QOaETziUCaBqXQd4CJhgdkwsQLCyiC')
+    DISCORD_REDIRECT_URI = os.environ.get('REDIRECT_URI', 'https://your-app-name.onrender.com/callback')
+    DISCORD_SCOPES = ['identify', 'guilds']
+
+    # عنوان API الخاص بالبوت (على Kerit Cloud)
+    API_BASE_URL = os.environ.get('API_BASE_URL', 'http://216.22.43.61:8080')
 
     # ID مالك البوت (لمنحه صلاحية كاملة حتى لو لم يكن مشرفاً في السيرفر)
-    BOT_OWNER_ID = os.environ.get('BOT_OWNER_ID') or '753996796740501535'
+    BOT_OWNER_ID = os.environ.get('BOT_OWNER_ID', '753996796740501535')
