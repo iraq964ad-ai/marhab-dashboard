@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 import requests
 import urllib.parse
@@ -98,21 +98,7 @@ def manage_buttons():
     form = ButtonForm()
     form.guild_id.choices = [(g, str(g)) for g in current_user.guilds]
     if form.validate_on_submit():
-        try:
-            dbutils.add_button(
-                guild_id=form.guild_id.data,
-                key=form.key.data,
-                label=form.label.data,
-                emoji=form.emoji.data or '',
-                description=form.description.data or '',
-                ticket_title=form.ticket_title.data or '',
-                ticket_color=form.ticket_color.data or '#5865F2'
-            )
-            flash('تم إضافة الزر بنجاح', 'success')
-        except NotImplementedError:
-            flash('⚠️ الإضافة عبر الويب غير متاحة حالياً. استخدم الأمر !panel_settings في ديسكورد.', 'warning')
-        except Exception as e:
-            flash(f'خطأ: {e}', 'danger')
+        flash('⚠️ الإضافة عبر الويب غير متاحة حالياً. استخدم الأمر !panel_settings في ديسكورد.', 'warning')
         return redirect(url_for('manage_buttons'))
     all_buttons = []
     for g in current_user.guilds:
@@ -120,12 +106,6 @@ def manage_buttons():
         for btn in buttons:
             all_buttons.append(btn)
     return render_template('buttons.html', form=form, buttons=all_buttons)
-
-@app.route('/button/delete/<int:button_id>')
-@login_required
-def delete_button(button_id):
-    flash('⚠️ الحذف عبر الويب غير متاح حالياً. استخدم الأمر !panel_settings في ديسكورد.', 'warning')
-    return redirect(url_for('manage_buttons'))
 
 @app.route('/settings/<int:guild_id>', methods=['GET', 'POST'])
 @login_required
@@ -135,22 +115,7 @@ def panel_settings(guild_id):
         return redirect(url_for('index'))
     form = PanelSettingsForm()
     if form.validate_on_submit():
-        try:
-            data = {
-                'title': form.title.data,
-                'description': form.description.data,
-                'color': form.color.data,
-                'thumbnail': form.thumbnail.data,
-                'image': form.image.data,
-                'footer': form.footer.data
-            }
-            data = {k: v for k, v in data.items() if v}
-            dbutils.update_panel_settings(guild_id, **data)
-            flash('تم حفظ إعدادات اللوحة', 'success')
-        except NotImplementedError:
-            flash('⚠️ التحديث عبر الويب غير متاح حالياً. استخدم الأوامر !set_title, !set_desc, !set_color في ديسكورد.', 'warning')
-        except Exception as e:
-            flash(f'خطأ: {e}', 'danger')
+        flash('⚠️ التحديث عبر الويب غير متاح حالياً. استخدم الأوامر !set_title, !set_desc, !set_color في ديسكورد.', 'warning')
         return redirect(url_for('panel_settings', guild_id=guild_id))
     settings = dbutils.get_panel_settings(guild_id)
     if settings:
@@ -161,6 +126,66 @@ def panel_settings(guild_id):
         form.image.data = settings.get('image')
         form.footer.data = settings.get('footer')
     return render_template('settings.html', form=form, guild_id=guild_id)
+
+# ========== إدارة الترحيب ==========
+@app.route('/welcome/<int:guild_id>', methods=['GET', 'POST'])
+@login_required
+def welcome_settings(guild_id):
+    if guild_id not in current_user.guilds:
+        flash('ليس لديك صلاحية', 'danger')
+        return redirect(url_for('index'))
+    if request.method == 'POST':
+        data = {
+            'welcome_channel_id': request.form.get('welcome_channel_id', type=int),
+            'welcome_message': request.form.get('welcome_message'),
+            'welcome_image_url': request.form.get('welcome_image_url'),
+            'auto_role_id': request.form.get('auto_role_id', type=int),
+            'avatar_x': request.form.get('avatar_x', type=int),
+            'avatar_y': request.form.get('avatar_y', type=int),
+            'avatar_size': request.form.get('avatar_size', type=int),
+            'text_y': request.form.get('text_y', type=int),
+            'text_font_size': request.form.get('text_font_size', type=int),
+            'auto_center': 'auto_center' in request.form
+        }
+        success = dbutils.update_welcome_settings(guild_id, data)
+        if success:
+            flash('تم حفظ إعدادات الترحيب', 'success')
+        else:
+            flash('حدث خطأ أثناء الحفظ', 'danger')
+        return redirect(url_for('welcome_settings', guild_id=guild_id))
+    settings = dbutils.get_welcome_settings(guild_id)
+    return render_template('welcome.html', settings=settings, guild_id=guild_id)
+
+# ========== إدارة الردود التلقائية ==========
+@app.route('/responses/<int:guild_id>')
+@login_required
+def responses_manager(guild_id):
+    if guild_id not in current_user.guilds:
+        flash('ليس لديك صلاحية', 'danger')
+        return redirect(url_for('index'))
+    responses = dbutils.get_auto_responses(guild_id)
+    return render_template('responses.html', responses=responses, guild_id=guild_id)
+
+@app.route('/api/responses/<int:guild_id>', methods=['POST'])
+@login_required
+def api_add_response(guild_id):
+    if guild_id not in current_user.guilds:
+        return jsonify({'error': 'Unauthorized'}), 403
+    data = request.get_json()
+    keyword = data.get('keyword')
+    response = data.get('response')
+    if keyword and response:
+        dbutils.add_auto_response(guild_id, keyword, response)
+        return jsonify({'status': 'ok'})
+    return jsonify({'error': 'missing fields'}), 400
+
+@app.route('/api/responses/<int:guild_id>/<keyword>', methods=['DELETE'])
+@login_required
+def api_delete_response(guild_id, keyword):
+    if guild_id not in current_user.guilds:
+        return jsonify({'error': 'Unauthorized'}), 403
+    dbutils.delete_auto_response(guild_id, keyword)
+    return jsonify({'status': 'ok'})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
